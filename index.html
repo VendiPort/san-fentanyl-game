@@ -1,8 +1,20 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>SAN FENTANYL</title>
-<style>html,body{margin:0;background:#05020c;height:100%;overflow:hidden}
-canvas{display:block;margin:auto;width:min(100vw,177.7vh);height:auto;aspect-ratio:16/9;touch-action:none;position:absolute;left:0;right:0;top:0;bottom:0;max-height:100vh}
-#tc{position:fixed;bottom:6px;left:0;right:0;display:none;pointer-events:none;font:bold 18px monospace}
-#tc button{pointer-events:auto;position:absolute;width:56px;height:56px;border-radius:50%;border:2px solid #0ff;background:rgba(10,0,30,.55);color:#0ff;font:bold 16px monospace;touch-action:none}
-</style></head><body><canvas id="c" width="960" height="540"></canvas><div id="tc"></div>
-<script src="game.js"></script></body></html>
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SAN FENTANYL: First-Person Edition</title>
+<style>:root{--b:clamp(36px,min(9.5vw,12.5vh),58px);--g:6px;--S:calc(3*var(--b) + 2*var(--g));--ws:clamp(30px,5.2vw,44px)}
+html,body{margin:0;background:#05020c;height:100%;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none;font-family:monospace}
+canvas{display:block;width:min(100vw,177.7vh);height:auto;aspect-ratio:16/9;touch-action:none;position:absolute;left:0;right:0;top:0;bottom:0;margin:auto;max-height:100vh;cursor:crosshair}
+#tc{position:fixed;left:0;right:0;bottom:max(6px,env(safe-area-inset-bottom));padding:0 max(8px,env(safe-area-inset-left)) 0 max(8px,env(safe-area-inset-right));display:none;justify-content:space-between;align-items:flex-end;pointer-events:none;box-sizing:border-box;z-index:5}
+#stick{width:var(--S);height:var(--S);border-radius:50%;border:2px solid #18e0ff;background:rgba(10,0,30,.45);box-shadow:0 0 10px #18e0ff66;pointer-events:auto;touch-action:none;position:relative;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+#stick i{width:calc(var(--b)*.9);height:calc(var(--b)*.9);border-radius:50%;background:rgba(24,224,255,.35);border:2px solid #18e0ff;box-sizing:border-box;pointer-events:none}
+#act{display:grid;gap:var(--g);grid-template-columns:repeat(3,var(--b));grid-template-rows:repeat(3,var(--b));pointer-events:none}
+#act button{pointer-events:auto;width:var(--b);height:var(--b);padding:0;border-radius:50%;border:2px solid #18e0ff;background:rgba(10,0,30,.5);color:#18e0ff;font:bold calc(var(--b)*.34) monospace;touch-action:none;box-shadow:0 0 8px #18e0ff66;box-sizing:border-box}
+#act button.on{background:rgba(24,224,255,.45)}
+#act button.pw{grid-column:1/4;grid-row:3;width:auto;border-radius:calc(var(--b)/2);border-color:#ff2bd6;color:#ff2bd6;background:rgba(60,0,50,.6);box-shadow:0 0 12px #ff2bd6aa;font-size:calc(var(--b)*.3)}
+#ws{position:fixed;left:50%;transform:translateX(-50%);bottom:max(6px,env(safe-area-inset-bottom));display:none;gap:3px;z-index:6;pointer-events:none}
+#ws button{pointer-events:auto;width:var(--ws);height:var(--ws);padding:0;border:1px solid #18e0ff;background:rgba(10,0,30,.6);color:#fff;font:bold 11px monospace;line-height:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;touch-action:none;box-sizing:border-box;cursor:pointer}
+#ws button small{font-size:7px;color:#18e0ff;margin-top:2px;white-space:nowrap}
+#ws button.sel{border-color:#ff2bd6;box-shadow:0 0 8px #ff2bd6;background:rgba(80,0,70,.7)}
+#ws button.lock{opacity:.45}
+@media (orientation:portrait){:root{--b:min(15vw,66px)}canvas{top:0;bottom:auto;margin:0 auto}body.touch #ws{bottom:calc(var(--S) + 18px + max(6px,env(safe-area-inset-bottom)))}}
+</style></head><body><canvas id="c" width="960" height="540"></canvas><div id="ws"></div><div id="tc"></div>
+<script src="game.js?v=4"></script></body></html>
