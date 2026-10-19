@@ -14,8 +14,8 @@ let S='title',G=null,tnow=0;
 
 function newGame(){
   G={score:0,un:{hose:false,ng:false,fg:false,torch:false},ng:5,fg:4,wp:1,
-     P:{x:200,y:440,z:0,vz:0,f:1,hp:100,max:100,cd:0,anim:0,at:'',inv:0,burn:0,slow:0,boost:0,narc:100,water:100,poopCd:0,hold:null,spray:0,flame:0,hose:0},
-     msg:'',msgT:0};
+     P:{x:200,y:440,z:0,vz:0,f:1,hp:100,max:100,cd:0,anim:0,at:'',inv:0,burn:0,slow:0,boost:0,narc:100,water:100,poopCd:0,hold:null,pcd:0,pt:-1,pn:0,jt:0,jc:0,spray:0,flame:0,hose:0},
+     msg:'',msgT:0,flash:0,rings:[]};
   startLevel(0);
 }
 function msg(s,t=3){G.msg=s;G.msgT=t;}
@@ -79,6 +79,16 @@ function melee(range,dmg,kb,kick){const P=G.P;
   for(const b of G.bros)if(!b.rescued&&b.hurt<=0&&(b.x-P.x)*P.f>-10&&Math.abs(b.x-P.x)<range&&Math.abs(b.y-P.y)<34){b.hurt=1;addScore(-50,b.x,b.y,'HIT A TECH BRO');say(b,'OW! I\'m moving home!');}
   const B=G.boss;if(B&&!B.dead&&Math.abs(B.x-P.x)<range+28&&Math.abs(B.y-P.y)<40)dmgBoss(kick?5:3);
 }
+function startPower(){const P=G.P;P.pt=0;P.pn=0;P.pcd=6;P.cd=.9;P.jc=0;msg('POWER COMBO!',1);}
+function powerTick(dt){const P=G.P;if(P.pt<0)return;const o=P.pt;P.pt+=dt;
+  const st=[0,.14,.28,.44];
+  for(let i=P.pn;i<4;i++){if(P.pt<st[i])break;P.pn=i+1;
+    if(i<3){P.anim=.16;P.at='punch';melee(64,12+i*4,150+i*60,false);G.shake=Math.max(G.shake,.12);P.x+=P.f*10;}
+    else{P.anim=.4;P.at='punch';G.flash=.4;G.shake=.7;G.rings.push({x:P.x,y:P.y,t:0});
+      for(const f of foes())if(Math.abs(f.x-P.x)<170&&Math.abs(f.y-P.y)<70){dmgFoe(f,70,P.f*700,true);burst(f.x,f.y,40,'#ffe14a',10);}
+      const B=G.boss;if(B&&!B.dead&&Math.abs(B.x-P.x)<190&&Math.abs(B.y-P.y)<80){dmgBoss(30);burst(B.x,B.y,50,'#ff2bd6',30);}
+      burst(P.x,P.y,30,'#19f3ff',40);ftxt(P.x,P.y-100,'POWER LAUNCHER!','#ff2bd6');addScore(50);}}
+  if(P.pt>.7)P.pt=-1;}
 function updPlayer(dt){
   const P=G.P;P.inv-=dt;P.cd-=dt;P.anim-=dt;P.slow-=dt;P.poopCd-=dt;P.boost-=dt;
   if(P.burn>0){P.burn-=dt;P.hp-=4*dt;if(Math.random()<.5)burst(P.x,P.y,30,'#ff8a2b',1);if(P.hp<=0)S='over';}
@@ -89,7 +99,13 @@ function updPlayer(dt){
   P.z+=P.vz*dt;P.vz-=900*dt;if(P.z<=0){P.z=0;P.vz=0;}
   P.x=clamp(P.x,G.cam+16,G.cam+W-16);if(G.camMin===G.camMax&&G.camMin>0)P.x=clamp(P.x,G.camMin+16,G.camMin+W-16);
   if(P.boost>0)for(const f of foes())if(Math.abs(f.x-P.x)<30&&Math.abs(f.y-P.y)<30)dmgFoe(f,40,P.f*400,true);
-  if(hit('KeyJ')&&P.cd<=0){P.cd=.26;P.anim=.18;P.at='punch';melee(52,10,120,false);}
+  P.pcd-=dt;P.jt-=dt;
+  if(hit('KeyJ')&&P.cd<=0&&P.pt<0){P.cd=.26;P.anim=.18;P.at='punch';melee(52,10,120,false);
+    if(P.jt>0)P.jc++;else P.jc=1;P.jt=.4;
+    if(P.jc===3){ftxt(P.x,P.y-90,'COMBO! +10','#ffe14a');addScore(10);}
+    if(P.jc>=4){P.jc=0;if(P.pcd<=0)startPower();}}
+  if(hit('KeyU')&&P.pcd<=0&&P.pt<0)startPower();
+  powerTick(dt);
   if(hit('KeyK')&&P.cd<=0){P.cd=.48;P.anim=.26;P.at='kick';melee(74,16,330,true);}
   for(let i=1;i<=5;i++)if(hit('Digit'+i))selWp(i);
   if(hit('KeyQ')){let w=G.wp;for(let k=0;k<5;k++){w=w%5+1;if(wpOk(w)){selWp(w);break;}}}
@@ -214,7 +230,7 @@ function updProj(p,dt){const P=G.P;p.life-=dt;p.x+=p.vx*dt;p.y+=(p.vy||0)*dt;
 
 // ---------- level logic ----------
 function update(dt){
-  const g=G,P=g.P;g.t+=dt;g.msgT-=dt;g.shake-=dt;
+  const g=G,P=g.P;g.t+=dt;g.msgT-=dt;g.shake-=dt;g.flash=(g.flash||0)-dt;for(const r of g.rings)r.t+=dt;g.rings=g.rings.filter(r=>r.t<.6);
   for(const t of g.txt)t.t-=dt;g.txt=g.txt.filter(t=>t.t>0);
   for(const f of g.fx){f.x+=f.vx*dt;f.y+=f.vy*dt;f.z+=f.vz*dt;f.vz-=300*dt;f.life-=dt;}g.fx=g.fx.filter(f=>f.life>0&&f.z>-5);
   if(g.phase==='ride'){updRide(dt);return;}
@@ -296,6 +312,7 @@ function updRide(dt){const g=G,P=g.P;
     if(Math.abs(dx)<34&&Math.abs(dy)<26){if(P.z>26){if(!s.hopped){s.hopped=true;addScore(20,s.x,s.y,'HOP!');}}else{s.dead=true;if(s.vendor){hurt(10);g.sp=Math.max(150,g.sp-160);ftxt(s.x,s.y-60,'VENDOR SHOVE!','#ff2bd6');}else{g.sp=Math.max(150,g.sp-110);ftxt(s.x,s.y-60,'CRASH!','#ff2bd6');}burst(s.x,s.y,20,'#ff8a2b',12);}}}
   // attackers
   g.attT-=dt;if(g.attT<=0){g.attT=rnd(1.3,2.6);g.att.push({side:Math.random()<.5?-1:1,d:480,y:P.y+rnd(-8,8),dead:false,ko:0});}
+  P.pcd-=dt;if(hit('KeyU')&&P.pcd<=0){P.pcd=6;G.flash=.4;G.shake=.6;G.rings.push({x:P.x,y:P.y,t:0});for(const a of g.att)if(!a.dead){a.dead=true;a.ko=.6;a.fly=a.side;}g.sp=Math.min(680,g.sp+80);addScore(60,P.x,P.y,'POWER SHOCKWAVE');}
   const act=hit('KeyJ','KeyK','KeyL');
   if(act&&P.cd<=0){P.cd=.22;P.anim=.2;P.at=hit('KeyK')?'kick':hit('KeyL')?'spray':'punch';
     let did=false;let near=g.att.filter(a=>!a.dead&&a.d<115).sort((a,b)=>a.d-b.d)[0];
@@ -318,12 +335,22 @@ function person(x,y,z,o){const sy=y-z,s=o.s||1,f=o.f||1;
   ctx.fillStyle='rgba(0,0,0,.4)';ctx.save();ctx.translate(0,z/s);ctx.beginPath();ctx.ellipse(0,0,16,5,0,0,7);ctx.fill();ctx.restore();
   if(o.rot){ctx.rotate(o.rot*f);ctx.translate(0,-6);}
   const wob=Math.sin((o.ph||0)*10)*(o.walk?4:0);
-  ctx.fillStyle=o.leg||'#222';ctx.fillRect(-8,-18,6,18+wob*.3);ctx.fillRect(2,-18,6,18-wob*.3);
+  if(o.alice){const l1=18+wob*.3,l2=18-wob*.3;
+    for(const [lx,lh] of [[-8,l1],[2,l2]])for(let i=0;i<lh;i+=4){ctx.fillStyle=(i/4)%2?'#ffffff':'#19f3ff';ctx.fillRect(lx,-18+i,6,Math.min(4,lh-i));}
+    ctx.fillStyle='#ff2bd6';ctx.fillRect(-9,-2,8,2);ctx.fillRect(1,-2,8,2);}
+  else{ctx.fillStyle=o.leg||'#222';ctx.fillRect(-8,-18,6,18+wob*.3);ctx.fillRect(2,-18,6,18-wob*.3);}
   ctx.shadowColor=o.glow||'transparent';ctx.shadowBlur=o.glow?10:0;
-  ctx.fillStyle=o.body;ctx.fillRect(-10,-48,20,32);ctx.shadowBlur=0;
+  if(o.alice){ctx.shadowColor='#19f3ff';ctx.shadowBlur=12;ctx.fillStyle='#6ec6ff';ctx.fillRect(-10,-48,20,20);
+    ctx.beginPath();ctx.moveTo(-10,-30);ctx.lineTo(10,-30);ctx.lineTo(15,-14);ctx.lineTo(-15,-14);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillRect(-6,-46,12,10);ctx.beginPath();ctx.moveTo(-7,-32);ctx.lineTo(7,-32);ctx.lineTo(11,-15);ctx.lineTo(-11,-15);ctx.fill();
+    ctx.fillStyle='#ff2bd6';ctx.fillRect(-2,-40,4,3);ctx.fillRect(-11,-30,22,2);ctx.shadowBlur=0;}
+  else{ctx.fillStyle=o.body;ctx.fillRect(-10,-48,20,32);}ctx.shadowBlur=0;
   ctx.fillStyle=o.skin||'#f2c7a0';ctx.beginPath();ctx.arc(0,-58,11,0,7);ctx.fill();
   if(o.hair){ctx.fillStyle=o.hair;ctx.beginPath();ctx.arc(0,-61,12,Math.PI,0);ctx.fill();ctx.fillRect(-12,-61,5,22);ctx.fillRect(7,-61,5,22);
     if(o.hair2){ctx.fillStyle=o.hair2;ctx.fillRect(-12,-61,3,26);ctx.fillRect(9,-61,3,26);ctx.beginPath();ctx.arc(0,-62,12,Math.PI*1.1,Math.PI*1.5);ctx.fill();}}
+  if(o.alice){ctx.fillStyle='#fff';ctx.shadowColor='#19f3ff';ctx.shadowBlur=8;ctx.fillRect(-12,-61,24,3);ctx.shadowBlur=0;
+    ctx.fillStyle='#6ec6ff';ctx.shadowColor='#19f3ff';ctx.shadowBlur=8;ctx.fillRect(-12,-64,24,3);
+    ctx.beginPath();ctx.moveTo(-f*10,-67);ctx.lineTo(-f*20,-74);ctx.lineTo(-f*20,-60);ctx.fill();ctx.beginPath();ctx.moveTo(-f*10,-67);ctx.lineTo(-f*1,-74);ctx.lineTo(-f*1,-60);ctx.fill();ctx.shadowBlur=0;}
   ctx.fillStyle='#000';ctx.fillRect(f*4-1,-60,2,3);ctx.fillRect(f*-2,-60,2,3);
   if(o.zombie){ctx.fillStyle='#a00';ctx.fillRect(f*2,-54,5,2);}
   ctx.fillStyle=o.skin||'#f2c7a0';
@@ -417,7 +444,7 @@ function drawPlayer(){const P=G.P,x=wx(P.x);ctx.save();
   if(P.inv>0&&Math.floor(G.t*20)%2)ctx.globalAlpha=.5;
   const rideY=G.phase==='ride';
   if(rideY||P.boost>0){emoji('🛵',x,P.y+4-P.z,52);}
-  person(x,P.y-(rideY||P.boost>0?12:0),P.z,{body:'#ff2bd6',hair:'#ffe14a',leg:'#19f3ff',skin:'#f2c7a0',s:1,f:P.f,walk:!rideY&&(down('KeyA','KeyD','KeyW','KeyS','ArrowLeft','ArrowRight','ArrowUp','ArrowDown')),ph:G.t,atk:P.anim,glow:'#19f3ff'});
+  person(x,P.y-(rideY||P.boost>0?12:0),P.z,{body:'#6ec6ff',hair:'#0b0b12',hair2:'#2a2a55',alice:1,leg:'#19f3ff',skin:'#f2c7a0',s:1,f:P.f,walk:!rideY&&(down('KeyA','KeyD','KeyW','KeyS','ArrowLeft','ArrowRight','ArrowUp','ArrowDown')),ph:G.t,atk:P.anim,glow:'#19f3ff'});
   if(P.anim>0&&P.at==='kick'){emoji('🦵',x+P.f*30,P.y-28-P.z,22);}
   if(P.spray&&!rideY){ctx.fillStyle='rgba(25,243,255,.35)';ctx.beginPath();ctx.moveTo(x+P.f*14,P.y-38-P.z);ctx.lineTo(x+P.f*125,P.y-65-P.z);ctx.lineTo(x+P.f*125,P.y-10-P.z);ctx.fill();emoji('💨',x+P.f*40,P.y-36-P.z,18);}
   if(P.hose){ctx.strokeStyle='rgba(25,200,255,.8)';ctx.lineWidth=7;ctx.shadowColor='#19f3ff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(x+P.f*10,P.y-38);ctx.quadraticCurveTo(x+P.f*120,P.y-60,x+P.f*230,P.y-20);ctx.stroke();ctx.lineWidth=1;}
@@ -430,9 +457,10 @@ function drawHUD(){const g=G,P=g.P;
   glow('SCORE '+g.score,16,28,'#19f3ff',20);glow(LV[g.lvl]+(g.phase==='boss'||g.phase==='boss2'?' — BOSS':''),16,50,'#ff2bd6',13);
   bar(16,60,180,12,P.hp/P.max,'#ff2bd6','HEALTH');bar(16,76,120,8,P.narc/100,'#19f3ff','NARCAN');
   if(g.un.hose)bar(16,88,120,8,P.water/100,'#1e90ff','HOSE');
+  {const r=clamp(1-P.pcd/6,0,1);bar(16,100,120,8,r,r>=1?'#ffe14a':'#ff8a2b',r>=1?'POWER [U] READY':'POWER');}
   // weapons
   const W5=[['1','👊','Fists'],['2','🚿','Hose'],['3','💊','N-Gren'],['4','🔦','Torch'],['5','☣️','F-Gren']];
-  W5.forEach((w,i)=>{const x=16+i*58,y=H-58,ok=wpOk(i+1);ctx.fillStyle=g.wp===i+1?'rgba(255,43,214,.5)':'rgba(0,0,0,.55)';ctx.fillRect(x,y,52,50);ctx.strokeStyle=ok?'#19f3ff':'#444';ctx.strokeRect(x,y,52,50);
+  W5.forEach((w,i)=>{const x=W/2-145+i*58,y=H-58,ok=wpOk(i+1);ctx.fillStyle=g.wp===i+1?'rgba(255,43,214,.5)':'rgba(0,0,0,.55)';ctx.fillRect(x,y,52,50);ctx.strokeStyle=ok?'#19f3ff':'#444';ctx.strokeRect(x,y,52,50);
     ctx.globalAlpha=ok?1:.2;emoji(w[1],x+26,y+30,24);ctx.globalAlpha=1;ctx.fillStyle='#fff';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(w[0],x+3,y+11);
     if(i===2&&ok)ctx.fillText('x'+g.ng,x+30,y+46);if(i===4&&ok)ctx.fillText('x'+g.fg,x+30,y+46);if(!ok){ctx.fillText(['','200pts','500pts','pickup','1400'][i],x+8,y+46);}});
   if(g.boss&&g.boss.kind==='soma'&&!g.boss.dead)bar(W/2-160,14,320,16,g.heat/100,'#ff8a2b','HEAT '+Math.floor(g.heat)+'%');
@@ -449,11 +477,12 @@ function screen(title,sub,lines,c1,c2){ctx.fillStyle='#05020c';ctx.fillRect(0,0,
   lines.forEach((l,i)=>glow(l,W/2,245+i*24,i%2?'#19f3ff':'#ff2bd6',14,'center',6));
   if(Math.floor(tnow*2)%2)glow('PRESS ENTER / TAP TO START',W/2,H-70,'#fff',18,'center',10);}
 function draw(){
-  if(S==='title'){screen('SAN FENTANYL','a cartoon satire of a very real city',['WASD / ARROWS move · SPACE jump · Q cycle weapons','J punch · K kick · L Narcan spray · E use weapon · 1-5 select · G grab/throw','Knock out drug zombies to unlock the hose, grenades & more','Rescue tech bros. Do NOT step in the poop. Protect (then throw) the Mayor.','SoMa → The Mission → The Tenderloin → The NGO Tower'],'#ff2bd6','#19f3ff');post();return;}
+  if(S==='title'){screen('SAN FENTANYL','a cartoon satire of a very real city',['WASD / ARROWS move · SPACE jump · Q cycle weapons','J punch (spam J = combo) · U POWER COMBO · K kick · L Narcan spray · E use weapon · 1-5 select · G grab/throw','Knock out drug zombies to unlock the hose, grenades & more','Rescue tech bros. Do NOT step in the poop. Protect (then throw) the Mayor.','SoMa → The Mission → The Tenderloin → The NGO Tower'],'#ff2bd6','#19f3ff');post();return;}
   if(S==='over'){screen('GAME OVER','You are now a San Francisco statistic.',['Score: '+G.score,'Zombies: 1 · You: 0','Press Enter to try again'],'#ff2bd6','#19f3ff');post();return;}
   if(S==='win'){screen('YOU WIN','The NGO tower falls. The mayor… files a complaint.',['Final score: '+G.score,'Tech bros are moving back home anyway.','Press Enter to play again'],'#19f3ff','#ff2bd6');post();return;}
   ctx.save();if(G.shake>0)ctx.translate(rnd(-4,4),rnd(-4,4));
-  drawBG();drawProps();drawEnt();ctx.restore();drawHUD();
+  drawBG();drawProps();drawEnt();for(const r of G.rings){ctx.save();ctx.strokeStyle='rgba(255,43,214,'+(1-r.t/.6)+')';ctx.shadowColor='#19f3ff';ctx.shadowBlur=20;ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(wx(r.x),r.y,r.t*320,r.t*110,0,0,7);ctx.stroke();ctx.restore();}ctx.restore();
+  if(G.flash>0){ctx.fillStyle='rgba(120,255,255,'+clamp(G.flash*1.6,0,.6)+')';ctx.fillRect(0,0,W,H);}drawHUD();
   if(G.phase==='cable'){ctx.fillStyle='rgba(0,0,0,'+clamp(G.ct-1.4,0,1)+')';ctx.fillRect(0,0,W,H);}
   post();
 }
@@ -463,9 +492,10 @@ function frame(ts){const t=ts/1000;let dt=Math.min(.05,t-tnow||0);tnow=t;
   draw();for(const k in press)delete press[k];requestAnimationFrame(frame);}
 cv.addEventListener('pointerdown',()=>{if(S!=='play'){newGame();S='play';}});
 // touch controls
-if('ontouchstart' in window){const tc=document.getElementById('tc');tc.style.display='block';
-  const B=(l,code,css)=>{const b=document.createElement('button');b.textContent=l;b.style.cssText=css;const on=e=>{e.preventDefault();if(!keys[code])press[code]=1;keys[code]=1;},off=e=>{e.preventDefault();keys[code]=0;};b.addEventListener('touchstart',on);b.addEventListener('touchend',off);b.addEventListener('touchcancel',off);tc.appendChild(b);};
-  B('◀','KeyA','left:6px;bottom:50px');B('▶','KeyD','left:130px;bottom:50px');B('▲','KeyW','left:68px;bottom:100px');B('▼','KeyS','left:68px;bottom:0');
-  B('J','KeyJ','right:140px;bottom:60px');B('K','KeyK','right:76px;bottom:90px');B('L','KeyL','right:12px;bottom:60px');B('E','KeyE','right:140px;bottom:0');B('⤒','Space','right:76px;bottom:20px');B('G','KeyG','right:12px;bottom:0');B('Q','KeyQ','right:204px;bottom:30px');}
+if('ontouchstart' in window||navigator.maxTouchPoints>0){const tc=document.getElementById('tc');tc.style.display='flex';
+  const mk=(par,l,code,cls,css)=>{const b=document.createElement('button');b.textContent=l;b.className=cls||'';if(css)b.style.cssText=css;const on=e=>{e.preventDefault();if(!keys[code])press[code]=1;keys[code]=1;},off=e=>{e.preventDefault();keys[code]=0;};b.addEventListener('touchstart',on,{passive:false});b.addEventListener('touchend',off);b.addEventListener('touchcancel',off);par.appendChild(b);};
+  const pad=document.createElement('div'),act=document.createElement('div');pad.id='pad';act.id='act';tc.appendChild(pad);tc.appendChild(act);
+  mk(pad,'▲','KeyW','',"grid-area:1/2");mk(pad,'◀','KeyA','',"grid-area:2/1");mk(pad,'▶','KeyD','',"grid-area:2/3");mk(pad,'▼','KeyS','',"grid-area:3/2");
+  mk(act,'Q','KeyQ');mk(act,'J','KeyJ');mk(act,'K','KeyK');mk(act,'E','KeyE');mk(act,'L','KeyL');mk(act,'G','KeyG');mk(act,'⤒','Space');mk(act,'POWER','KeyU','pw');}
 window.__sf={get G(){return G;},get S(){return S;},set S(v){S=v;},newGame,startLevel,startSoma,startFinal,update,draw,frame,keys,press};
 requestAnimationFrame(frame);
